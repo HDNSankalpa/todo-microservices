@@ -76,8 +76,16 @@ jobs:
 
       - name: Notify Slack on success
         if: success() && env.SLACK_WEBHOOK_URL != ''
-        run: curl -X POST -H 'Content-type: application/json' --data '{"text":"Todo microservices deploy succeeded."}' "$SLACK_WEBHOOK_URL"
+        run: |
+          curl -X POST \
+            -H 'Content-type: application/json' \
+            --data '{"text":"Todo microservices deploy succeeded."}' \
+            "$SLACK_WEBHOOK_URL"
 
       - name: Notify Slack on failure
         if: failure() && env.SLACK_WEBHOOK_URL != ''
-        run: curl -X POST -H 'Content-type: application/json' --data '{"text":"Todo microservices deploy failed. Check GitHub Actions logs."}' "$SLACK_WEBHOOK_URL"
+        run: |
+          curl -X POST \
+            -H 'Content-type: application/json' \
+            --data '{"text":"Todo microservices deploy failed. Check GitHub Actions logs."}' \
+            "$SLACK_WEBHOOK_URL"
