@@ -531,7 +531,7 @@ docker compose version
 ```bash
 sudo mkdir -p /opt/todo-microservices
 sudo chown ec2-user:ec2-user /opt/todo-microservices
-git clone https://github.com/YOUR_ORG/todo-microservices.git /opt/todo-microservices
+git clone https://github.com/HDNSankalpa/todo-microservices.git /opt/todo-microservices
 cd /opt/todo-microservices
 ```
 
@@ -597,34 +597,60 @@ In AWS Console:
 git init
 git add .
 git commit -m "Initial todo microservices deployment"
-git branch -M main
-git remote add origin https://github.com/YOUR_ORG/todo-microservices.git
-git push -u origin main
+git branch -M master
+git remote add origin https://github.com/HDNSankalpa/todo-microservices.git
+git push -u origin master
 ```
 
 ### 17. Add GitHub Secrets
 
-Go to GitHub -> Repository Settings -> Secrets and variables -> Actions -> New repository secret.
+You are on the correct page: GitHub -> repository -> `Settings` -> `Secrets and variables` -> `Actions`.
 
-Required:
+Create each secret one at a time:
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
-- `EC2_PRIVATE_KEY`
-- `EC2_USER`
-- `EC2_HOST`
+1. Click `New repository secret`.
+2. In `Name`, paste the secret name exactly.
+3. In `Secret`, paste the value.
+4. Click `Add secret`.
+5. Repeat for the next secret.
 
-Values:
+Add these required secrets:
 
-- `AWS_REGION`: your AWS region.
-- `EC2_USER`: `ec2-user`.
-- `EC2_HOST`: the EC2 public IPv4 address you copied after launching the instance.
-- `EC2_PRIVATE_KEY`: full contents of `~/.ssh/todo-microservices-key.pem`.
+| Secret name | Value |
+| --- | --- |
+| `AWS_ACCESS_KEY_ID` | Access key ID for the AWS IAM user that can push to ECR and deploy. |
+| `AWS_SECRET_ACCESS_KEY` | Secret access key for that AWS IAM user. |
+| `AWS_REGION` | `ap-south-1` |
+| `EC2_PRIVATE_KEY` | Full contents of your downloaded `.pem` file. |
+| `EC2_USER` | `ec2-user` |
+| `EC2_HOST` | `13.201.50.108` or your current EC2 public IPv4 address. |
 
-Optional:
+For `EC2_PRIVATE_KEY` on Windows:
 
-- `SLACK_WEBHOOK_URL`
+1. Open PowerShell on your machine.
+2. Run:
+
+```powershell
+Get-Content "$HOME\.ssh\todo-microservices-key.pem" -Raw
+```
+
+3. Copy the full output, including:
+
+```text
+-----BEGIN ... PRIVATE KEY-----
+...
+-----END ... PRIVATE KEY-----
+```
+
+4. Paste that full text into the GitHub `Secret` box.
+
+Optional secret:
+
+| Secret name | Value |
+| --- | --- |
+| `SLACK_WEBHOOK_URL` | Slack incoming webhook URL, only if you want deploy notifications. |
+
+After adding the required secrets, the page should list the secret names, but GitHub will hide their values. That is expected.
 
 ### 18. Run Deployment Manually
 
@@ -637,13 +663,13 @@ on:
 
 Run it from GitHub: Actions -> Deploy -> Run workflow.
 
-If later you want both manual and automatic deployment on merge to `main`, change it to:
+If later you want both manual and automatic deployment on merge to `master`, change it to:
 
 ```yaml
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [master]
 ```
 
 ### 19. EC2 Login To ECR
@@ -661,7 +687,7 @@ After the GitHub deploy workflow builds and pushes images to ECR:
 
 ```bash
 cd /opt/todo-microservices
-git pull origin main
+git pull origin master
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml pull
 docker run --rm -v "$PWD:/app" -w /app node:20-alpine sh -lc "npm install && npm -w @todo/frontend run build"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml up -d --remove-orphans
@@ -697,9 +723,9 @@ Use this process for every deployment:
 
 1. Create a feature branch.
 2. Commit code.
-3. Open PR into `main`.
+3. Open PR into `master`.
 4. Wait for `ci.yml` to pass.
-5. Merge into `main`.
+5. Merge into `master`.
 6. Run `deploy.yml` manually from GitHub Actions.
 7. SSH into EC2.
 8. Pull latest repo and images.
@@ -712,7 +738,7 @@ Commands after the workflow pushes images:
 ```bash
 ssh -i ~/.ssh/todo-microservices-key.pem ec2-user@EC2_PUBLIC_IP
 cd /opt/todo-microservices
-git pull origin main
+git pull origin master
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml pull
 docker run --rm -v "$PWD:/app" -w /app node:20-alpine sh -lc "npm install && npm -w @todo/frontend run build"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml up -d --remove-orphans
