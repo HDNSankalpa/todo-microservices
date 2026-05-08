@@ -566,6 +566,18 @@ IMAGE_TAG=latest
 EOF
 ```
 
+Before running Docker Compose, replace `YOUR_ACCOUNT_ID` with your real AWS account ID. You can get it from any ECR repository URI in the AWS Console. Example:
+
+```bash
+ECR_REGISTRY=123456789012.dkr.ecr.ap-south-1.amazonaws.com
+```
+
+Verify the required Compose variables are present:
+
+```bash
+grep -E '^(ECR_REGISTRY|IMAGE_TAG|S3_BUCKET_NAME|EVENTBRIDGE_BUS_NAME)=' .env
+```
+
 Prefer an EC2 instance role for AWS permissions. If you use the instance role, remove static AWS keys from `.env`.
 
 ### 15. Create ECR Repositories
@@ -657,8 +669,12 @@ on:
 On EC2:
 
 ```bash
+cd /opt/todo-microservices
+set -a
+source .env
+set +a
 aws ecr get-login-password --region ap-south-1 \
-  | docker login --username AWS --password-stdin YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com
+  | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 ```
 
 ### 20. First Manual Deployment On EC2
@@ -674,9 +690,22 @@ Then run:
 ```bash
 cd /opt/todo-microservices
 git pull origin master
+grep -E '^(ECR_REGISTRY|IMAGE_TAG)=' .env
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml pull
 docker run --rm -v "$PWD:/app" -w /app node:20-alpine sh -lc "npm install && npm -w @todo/frontend run build"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml up -d --remove-orphans
+```
+
+If `docker compose pull` says `ECR_REGISTRY variable is not set`, your `/opt/todo-microservices/.env` file is missing `ECR_REGISTRY`. Edit it:
+
+```bash
+nano /opt/todo-microservices/.env
+```
+
+Add or fix this line with your real AWS account ID:
+
+```bash
+ECR_REGISTRY=YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com
 ```
 
 Run database migrations:
