@@ -1,0 +1,10 @@
+{
+  "name": "@todo/todo-reminder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.716.0"
+  }
+}

@@ -1,0 +1,1 @@
+This directory is reserved for Docker-specific deployment assets such as EC2 bootstrap scripts and image promotion helpers. The runnable local and production Compose files live at the repository root.

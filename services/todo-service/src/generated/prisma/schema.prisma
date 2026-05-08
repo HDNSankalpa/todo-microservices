@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TodoStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+model Todo {
+  id          String        @id @default(cuid())
+  userId      String
+  title       String
+  description String        @default("")
+  priority    Priority      @default(MEDIUM)
+  status      TodoStatus    @default(TODO)
+  dueDate     DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+  position    Int           @default(0)
+  parentId    String?
+  parent      Todo?         @relation("Subtasks", fields: [parentId], references: [id])
+  subtasks    Todo[]        @relation("Subtasks")
+  tags        TodoTag[]
+  history     TodoHistory[]
+
+  @@index([userId, status, priority])
+}
+
+model TodoHistory {
+  id        String   @id @default(cuid())
+  todoId    String
+  snapshot  Json
+  createdAt DateTime @default(now())
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id     String    @id @default(cuid())
+  userId String
+  name   String
+  todos  TodoTag[]
+
+  @@unique([userId, name])
+}
+
+model TodoTag {
+  todoId String
+  tagId  String
+  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([todoId, tagId])
+}

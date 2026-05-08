@@ -1,0 +1,83 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials for ECR, S3, EventBridge, and EC2 deployment
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push one Docker image per service
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          for service in api-gateway auth-service todo-service file-service notification-service audit-service search-service frontend; do
+            repo="$REGISTRY/todo-$service"
+            aws ecr describe-repositories --repository-names "todo-$service" >/dev/null 2>&1 || aws ecr create-repository --repository-name "todo-$service"
+            if [ "$service" = "frontend" ]; then
+              docker build -f frontend/Dockerfile -t "$repo:${{ github.sha }}" -t "$repo:latest" .
+            else
+              docker build -f services/$service/Dockerfile -t "$repo:${{ github.sha }}" -t "$repo:latest" .
+            fi
+            docker push "$repo:${{ github.sha }}"
+            docker push "$repo:latest"
+          done
+
+      - name: Prepare EC2 SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+
+      - name: Pull images and restart changed service on EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'SSH'
+            cd /opt/todo-microservices
+            git pull origin main
+            export AWS_REGION='${{ secrets.AWS_REGION }}'
+            export ECR_REGISTRY='${{ steps.ecr.outputs.registry }}'
+            export IMAGE_TAG='${{ github.sha }}'
+            aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml pull
+            docker run --rm -v "$PWD:/app" -w /app node:20-alpine sh -lc "npm install && npm -w @todo/frontend run build"
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml up -d --remove-orphans
+          SSH
+
+      - name: Run Prisma production migrations
+        run: |
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'SSH'
+            cd /opt/todo-microservices
+            export ECR_REGISTRY='${{ steps.ecr.outputs.registry }}'
+            export IMAGE_TAG='${{ github.sha }}'
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml exec -T auth-service npm -w @todo/auth-service run prisma:migrate
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml exec -T todo-service npm -w @todo/todo-service run prisma:migrate
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.deploy.yml exec -T file-service npm -w @todo/file-service run prisma:migrate
+          SSH
+
+      - name: Health check every public service endpoint
+        run: |
+          for path in health; do curl -fsS "http://${{ secrets.EC2_HOST }}:3000/$path"; done
+
+      - name: Notify Slack on success
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        run: curl -X POST -H 'Content-type: application/json' --data '{"text":"Todo microservices deploy succeeded."}' "$SLACK_WEBHOOK_URL"
+
+      - name: Notify Slack on failure
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: curl -X POST -H 'Content-type: application/json' --data '{"text":"Todo microservices deploy failed. Check GitHub Actions logs."}' "$SLACK_WEBHOOK_URL"

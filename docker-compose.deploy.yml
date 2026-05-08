@@ -1,0 +1,50 @@
+services:
+  api-gateway:
+    image: ${ECR_REGISTRY}/todo-api-gateway:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  auth-service:
+    image: ${ECR_REGISTRY}/todo-auth-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  todo-service:
+    image: ${ECR_REGISTRY}/todo-todo-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  todo-service-2:
+    image: ${ECR_REGISTRY}/todo-todo-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  todo-service-3:
+    image: ${ECR_REGISTRY}/todo-todo-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  file-service:
+    image: ${ECR_REGISTRY}/todo-file-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  notification-service:
+    image: ${ECR_REGISTRY}/todo-notification-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  audit-service:
+    image: ${ECR_REGISTRY}/todo-audit-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  search-service:
+    image: ${ECR_REGISTRY}/todo-search-service:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
+
+  frontend:
+    image: ${ECR_REGISTRY}/todo-frontend:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
