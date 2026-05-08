@@ -614,35 +614,15 @@ Create each secret one at a time:
 4. Click `Add secret`.
 5. Repeat for the next secret.
 
-Add these required secrets:
+Add these required secrets for GitHub Actions image builds:
 
 | Secret name | Value |
 | --- | --- |
 | `AWS_ACCESS_KEY_ID` | Access key ID for the AWS IAM user that can push to ECR and deploy. |
 | `AWS_SECRET_ACCESS_KEY` | Secret access key for that AWS IAM user. |
 | `AWS_REGION` | `ap-south-1` |
-| `EC2_PRIVATE_KEY` | Full contents of your downloaded `.pem` file. |
-| `EC2_USER` | `ec2-user` |
-| `EC2_HOST` | `13.201.50.108` or your current EC2 public IPv4 address. |
 
-For `EC2_PRIVATE_KEY` on Windows:
-
-1. Open PowerShell on your machine.
-2. Run:
-
-```powershell
-Get-Content "$HOME\.ssh\todo-microservices-key.pem" -Raw
-```
-
-3. Copy the full output, including:
-
-```text
------BEGIN ... PRIVATE KEY-----
-...
------END ... PRIVATE KEY-----
-```
-
-4. Paste that full text into the GitHub `Secret` box.
+Do not add `EC2_PRIVATE_KEY`, `EC2_USER`, or `EC2_HOST` for this manual deployment path. GitHub Actions only builds and pushes Docker images to ECR. You deploy from your own machine by SSHing into EC2.
 
 Optional secret:
 
@@ -654,14 +634,14 @@ After adding the required secrets, the page should list the secret names, but Gi
 
 ### 18. Run Deployment Manually
 
-The included `.github/workflows/deploy.yml` is configured for manual deployment only:
+The included `.github/workflows/deploy.yml` is configured for manual image build/push only:
 
 ```yaml
 on:
   workflow_dispatch:
 ```
 
-Run it from GitHub: Actions -> Deploy -> Run workflow.
+Run it from GitHub: Actions -> `Build and Push Images` -> Run workflow.
 
 If later you want both manual and automatic deployment on merge to `master`, change it to:
 
@@ -683,7 +663,13 @@ aws ecr get-login-password --region ap-south-1 \
 
 ### 20. First Manual Deployment On EC2
 
-After the GitHub deploy workflow builds and pushes images to ECR:
+After the GitHub `Build and Push Images` workflow builds and pushes images to ECR, SSH into EC2 from your own machine:
+
+```powershell
+ssh -i "$HOME\.ssh\todo-microservices-key.pem" ec2-user@13.201.50.108
+```
+
+Then run:
 
 ```bash
 cd /opt/todo-microservices
@@ -726,7 +712,7 @@ Use this process for every deployment:
 3. Open PR into `master`.
 4. Wait for `ci.yml` to pass.
 5. Merge into `master`.
-6. Run `deploy.yml` manually from GitHub Actions.
+6. Run `Build and Push Images` manually from GitHub Actions.
 7. SSH into EC2.
 8. Pull latest repo and images.
 9. Run Compose up.
