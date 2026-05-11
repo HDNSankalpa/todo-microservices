@@ -12,6 +12,7 @@ RUN npm -w @todo/errors run build \
   && npm -w @todo/logger run build \
   && npm -w @todo/rabbitmq run build \
   && npm -w @todo/validators run build \
-  && npm -w @todo/todo-service run build
+  && npm -w @todo/todo-service run build \
+  && cp -R services/todo-service/src/generated services/todo-service/dist/generated
 EXPOSE 3000
 CMD ["npm", "-w", "@todo/todo-service", "run", "start"]
