@@ -548,8 +548,6 @@ RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
 REDIS_URL=redis://redis:6379
 
 AWS_REGION=ap-south-1
-AWS_ACCESS_KEY_ID=replace-if-not-using-instance-role
-AWS_SECRET_ACCESS_KEY=replace-if-not-using-instance-role
 S3_BUCKET_NAME=todo-microservices-uploads-ap-south-1-202605081
 EVENTBRIDGE_BUS_NAME=todo-microservices-bus
 
@@ -578,7 +576,14 @@ Verify the required Compose variables are present:
 grep -E '^(ECR_REGISTRY|IMAGE_TAG|S3_BUCKET_NAME|EVENTBRIDGE_BUS_NAME)=' .env
 ```
 
-Prefer an EC2 instance role for AWS permissions. If you use the instance role, remove static AWS keys from `.env`.
+Prefer the EC2 instance role from step 5 for AWS permissions. Do not put placeholder `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` values in `.env`; environment variables override the instance role and invalid placeholder keys will break ECR login.
+
+Only add static AWS keys to `.env` if you intentionally are not using an EC2 instance role:
+
+```bash
+AWS_ACCESS_KEY_ID=real-access-key-id
+AWS_SECRET_ACCESS_KEY=real-secret-access-key
+```
 
 ### 15. Create ECR Repositories
 
@@ -673,9 +678,13 @@ cd /opt/todo-microservices
 set -a
 source .env
 set +a
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+aws sts get-caller-identity
 aws ecr get-login-password --region ap-south-1 \
   | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 ```
+
+If `aws sts get-caller-identity` fails with `UnrecognizedClientException` or says the security token is invalid, fix AWS credentials before retrying Docker login. The usual cause on EC2 is placeholder or expired `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, or `AWS_SESSION_TOKEN` values in `.env` or the shell. Remove those variables when using the EC2 instance role, then confirm the instance has the `todo-microservices-ec2-role` IAM instance profile attached.
 
 ### 20. First Manual Deployment On EC2
 
