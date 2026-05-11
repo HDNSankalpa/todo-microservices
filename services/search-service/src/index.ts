@@ -21,7 +21,7 @@ const userFromReq = (req: express.Request) => {
   return (jwt.verify(token, process.env.JWT_SECRET ?? "dev-secret") as { sub: string }).sub;
 };
 async function ensureIndex() {
-  await pool.query("CREATE INDEX IF NOT EXISTS todo_fts_idx ON \"Todo\" USING GIN (to_tsvector('english', title || ' ' || description))");
+  await pool.query("CREATE INDEX IF NOT EXISTS todo_fts_idx ON \"Todo\" USING GIN (to_tsvector('simple', title || ' ' || description))");
 }
 app.use(helmet()); app.use(cors()); app.use(express.json()); app.use(requestContextMiddleware); app.use(morgan("combined"));
 app.get("/health", (_req, res) => ok(res, { status: "ok", service: "search-service", timestamp: new Date().toISOString() }));
@@ -29,7 +29,7 @@ app.get("/search", asyncHandler(async (req, res) => {
   const userId = String(req.query.userId ?? userFromReq(req));
   const q = z.string().min(1).parse(req.query.q);
   const result = await pool.query(
-    "SELECT id, title, description, priority, status, \"dueDate\", \"updatedAt\", ts_rank(to_tsvector('english', title || ' ' || description), plainto_tsquery('english', $2)) AS rank FROM \"Todo\" WHERE \"userId\"=$1 AND \"deletedAt\" IS NULL AND to_tsvector('english', title || ' ' || description) @@ plainto_tsquery('english', $2) ORDER BY rank DESC, \"updatedAt\" DESC LIMIT 30",
+    "SELECT id, title, description, priority, status, \"dueDate\", \"updatedAt\", ts_rank(to_tsvector('simple', title || ' ' || description), plainto_tsquery('simple', $2)) AS rank FROM \"Todo\" WHERE \"userId\"=$1 AND \"deletedAt\" IS NULL AND to_tsvector('simple', title || ' ' || description) @@ plainto_tsquery('simple', $2) ORDER BY rank DESC, \"updatedAt\" DESC LIMIT 30",
     [userId, q]
   );
   ok(res, result.rows);
