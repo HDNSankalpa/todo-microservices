@@ -1,7 +1,9 @@
 import axios from "axios";
 import { useAuthStore } from "./store";
 
-export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3000/api" });
+const apiBaseUrl = import.meta.env.VITE_API_URL ?? "/api";
+
+export const api = axios.create({ baseURL: apiBaseUrl });
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = "Bearer " + token;
@@ -12,7 +14,7 @@ api.interceptors.response.use(undefined, async (error) => {
   const original = error.config;
   if (error.response?.status === 401 && store.refreshToken && !original._retry) {
     original._retry = true;
-    const res = await axios.post((import.meta.env.VITE_API_URL ?? "http://localhost:3000/api") + "/auth/refresh", { refreshToken: store.refreshToken });
+    const res = await axios.post(apiBaseUrl + "/auth/refresh", { refreshToken: store.refreshToken });
     store.setTokens(res.data.data.accessToken, res.data.data.refreshToken);
     original.headers.Authorization = "Bearer " + res.data.data.accessToken;
     return api(original);

@@ -33,7 +33,7 @@ function Auth({ mode }: { mode: "login" | "register" }) {
 }
 function Notifications() {
   const token = useAuthStore((s) => s.accessToken); const client = useQueryClient();
-  React.useEffect(() => { if (!token) return; const s = io(import.meta.env.VITE_SOCKET_URL ?? "http://localhost:3004", { auth: { token } }); s.on("notification", () => client.invalidateQueries({ queryKey: ["notifications"] })); return () => { s.close(); }; }, [token]);
+  React.useEffect(() => { if (!token) return; const s = io(import.meta.env.VITE_SOCKET_URL ?? "/", { auth: { token } }); s.on("notification", () => client.invalidateQueries({ queryKey: ["notifications"] })); return () => { s.close(); }; }, [token]);
   const q = useQuery({ queryKey: ["notifications"], queryFn: () => endpoints.notifications().then((r) => r.data.data), enabled: !!token });
   const unread = (q.data ?? []).filter((n: any) => !n.read).length;
   return <div className="relative"><Bell /><span className="absolute -right-2 -top-2 rounded-full bg-red-600 px-1 text-xs text-white">{unread}</span></div>;
