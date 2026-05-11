@@ -1,4 +1,7 @@
 services:
+  nginx:
+    ports: ["80:80"]
+
   api-gateway:
     environment:
       NODE_ENV: production
